@@ -5,7 +5,6 @@ import os
 import telebot
 import requests
 import subprocess
-import shutil
 
 load_dotenv(find_dotenv())
 bot = telebot.TeleBot(os.getenv("TELEGRAM_BOT_TOKEN"))
@@ -31,10 +30,10 @@ def process_photo(message):
     l = {}
     # find the largest photo in the PhotoSize array
     for x in message.photo:
-	if x.width > tmp:
-	    original = x.file_id
-	    tmp = x.width
-	    l = x
+        if x.width > tmp:
+            original = x.file_id
+            tmp = x.width
+            l = x
     process_file(bot.get_file(original), message, l)
 
 def process_file(file_info, message, dim):
@@ -46,43 +45,17 @@ def process_file(file_info, message, dim):
     # write the download to a file
     open(f'{file_info.file_id}{ext}', 'wb').write(file.content)
     print(f'\tDownloaded: {file_info.file_id}{ext}')
+	
+    method = ''
+    if dim.width < dim.height:
+        method = 'x512'
+    else:
+        method = '512x'
+    subprocess.run(['convert', f'{file_info.file_id}{ext}', '-resize', method, f'{file_info.file_id}_new.png'])
+    subprocess.run(['pngcrush', f'{file_info.file_id}_new.png'])
 
-    # for files that aren't jpg, convert to jpg to be able to use the -quality flag
-    # probably only applies to stickers (.webp)
-    if ext != '.jpg':
-	print(f'\tconverting {ext} to .jpg')
-	subprocess.run(['convert', f'{file_info.file_id}{ext}', '-quality', '100', f'{file_info.file_id}.jpg'])
-
-    # make a backup of the jpg
-    shutil.copyfile(f'{file_info.file_id}.jpg', f'{file_info.file_id}_original.jpg')
-
-    # Do the (image) magic
-    q = 101 # quality ranges from [1,100]
-    while True:
-	print(f'\tResizing (q := {q}) {file_info.file_id}')
-	# resize the image
-	method = ''
-	if dim.width < dim.height:
-	    method = 'x512'
-	else:
-	    method = '512x'
-	subprocess.run(['convert', f'{file_info.file_id}.jpg', '-resize', method, f'{file_info.file_id}_new.png'])
-	subprocess.run(['pngcrush', f'{file_info.file_id}_new.png'])
-
-	x = os.stat(f'{file_info.file_id}_new.png').st_size
-	print(f'\tResized PNG (q := {q}) is {x/1024.0} KB ({x} bytes)')
-	# verify sticker is compressed enough
-	if x < 512000:
-	    break
-	else:
-	    print(f'\tToo large ({x} > 512000)')
-	    # decrement the quality incrementally
-	    q -= 1
-	    # compress the jpg
-	    subprocess.run(['convert', f'{file_info.file_id}_original.jpg', '-quality', f'{q}', f'{file_info.file_id}.jpg'])
     # Send the new PNG document
     doc = open(f'{file_info.file_id}_new.png', 'rb')
     bot.send_document(message.chat.id, doc, reply_to_message_id=message.message_id)
-
 
 bot.polling()
