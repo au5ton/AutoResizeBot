@@ -53,5 +53,9 @@ def process_file(file_info, message, dim):
     # Send the new PNG document
     doc = open(f'{file_info.file_id}_new.png', 'rb')
     bot.send_document(message.chat.id, doc, reply_to_message_id=message.message_id)
+	
+	# Clean up generated files
+	os.remove(f'{file_info.file_id}{ext}')
+	os.remove(f'{file_info.file_id}_new.png')
 
 bot.polling()
