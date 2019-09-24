@@ -15,10 +15,6 @@ print(bot.get_me())
 def send_welcome(message):
     bot.reply_to(message, "Howdy, how are you doing?")
 
-@bot.message_handler(content_types=['document'])
-def process_document(message):
-    process_file(bot.get_file(message.document.file_id), message)
-
 @bot.message_handler(content_types=['sticker'])
 def process_sticker(message):
     process_file(bot.get_file(message.sticker.file_id), message, message.sticker)
